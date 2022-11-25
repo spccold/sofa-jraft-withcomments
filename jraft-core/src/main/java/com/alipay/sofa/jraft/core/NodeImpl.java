@@ -1232,27 +1232,35 @@ public class NodeImpl implements Node, RaftServerService {
     private void resetLeaderId(final PeerId newLeaderId, final Status status) {
         if (newLeaderId.isEmpty()) {
             if (!this.leaderId.isEmpty() && this.state.compareTo(State.STATE_TRANSFERRING) > 0) {
+                // 停止follow leader
                 this.fsmCaller.onStopFollowing(new LeaderChangeContext(this.leaderId.copy(), this.currTerm, status));
             }
             this.leaderId = PeerId.emptyPeer();
         } else {
             if (this.leaderId == null || this.leaderId.isEmpty()) {
+                // 开始follow leader
                 this.fsmCaller.onStartFollowing(new LeaderChangeContext(newLeaderId, this.currTerm, status));
             }
             this.leaderId = newLeaderId.copy();
         }
     }
 
+    /**
+     * 只会在以下方法中被调用
+     * 1. handleInstallSnapshot
+     * 2. handleAppendEntriesRequest
+     * 说明请求一定是来自于leader
+     */
     // in writeLock
     private void checkStepDown(final long requestTerm, final PeerId serverId) {
         final Status status = new Status();
-        if (requestTerm > this.currTerm) {
+        if (requestTerm > this.currTerm) {// 新的leader的term更高, 执行stepDown
             status.setError(RaftError.ENEWLEADER, "Raft node receives message from new leader with higher term.");
             stepDown(requestTerm, false, status);
-        } else if (this.state != State.STATE_FOLLOWER) {
+        } else if (this.state != State.STATE_FOLLOWER) { // 这里为啥term一定相等？requestTerm < this.currTerm 没有可能吗？
             status.setError(RaftError.ENEWLEADER, "Candidate receives message from new leader with the same term.");
             stepDown(requestTerm, false, status);
-        } else if (this.leaderId.isEmpty()) {
+        } else if (this.leaderId.isEmpty()) { // 这里为啥term一定相等？requestTerm < this.currTerm 没有可能吗？
             status.setError(RaftError.ENEWLEADER, "Follower receives message from new leader with the same term.");
             stepDown(requestTerm, false, status);
         }
@@ -2049,6 +2057,7 @@ public class NodeImpl implements Node, RaftServerService {
                 doUnlock = false;
                 this.writeLock.unlock();
                 // see the comments at FollowerStableClosure#run()
+                // why?
                 this.ballotBox.setLastCommittedIndex(Math.min(request.getCommittedIndex(), prevLogIndex));
                 return respBuilder.build();
             }

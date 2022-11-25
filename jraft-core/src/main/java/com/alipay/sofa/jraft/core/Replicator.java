@@ -170,6 +170,7 @@ public class Replicator implements ThreadId.OnError {
         super();
         this.options = replicatorOptions;
         this.nodeMetrics = this.options.getNode().getNodeMetrics();
+        // 对于每一台服务器，发送到该服务器的下一个日志条目的索引（初始值为领导人最后的日志条目的索引+1）
         this.nextIndex = this.options.getLogManager().getLastLogIndex() + 1;
         this.timerManager = replicatorOptions.getTimerManager();
         this.raftOptions = raftOptions;
@@ -1559,7 +1560,9 @@ public class Replicator implements ThreadId.OnError {
         }
         rb.setTerm(this.options.getTerm());
         rb.setGroupId(this.options.getGroupId());
+        // 当前节点id, replication source
         rb.setServerId(this.options.getServerId().toString());
+        // 对端节点id, replication target
         rb.setPeerId(this.options.getPeerId().toString());
         rb.setPrevLogIndex(prevLogIndex);
         rb.setPrevLogTerm(prevLogTerm);

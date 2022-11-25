@@ -766,9 +766,12 @@ public class LogManagerImpl implements LogManager {
         return entry;
     }
 
+    /**
+     * 根据logIndex获取对应的term
+     */
     @Override
     public long getTerm(final long index) {
-        if (index == 0) {
+        if (index == 0) { // logIndex为0, term自然为0, 一个新集群的logIndex和term初始都为0
             return 0;
         }
         this.readLock.lock();

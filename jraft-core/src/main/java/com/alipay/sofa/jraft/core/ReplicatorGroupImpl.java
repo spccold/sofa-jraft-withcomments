@@ -78,6 +78,7 @@ public class ReplicatorGroupImpl implements ReplicatorGroup {
         this.commonOptions.setLogManager(opts.getLogManager());
         this.commonOptions.setBallotBox(opts.getBallotBox());
         this.commonOptions.setNode(opts.getNode());
+        // 初始term为0
         this.commonOptions.setTerm(0);
         this.commonOptions.setGroupId(nodeId.getGroupId());
         this.commonOptions.setServerId(nodeId.getPeerId());
@@ -214,6 +215,10 @@ public class ReplicatorGroupImpl implements ReplicatorGroup {
         return Replicator.stop(rid);
     }
 
+    /**
+     * term放在options看起来很奇怪, 正常来说options里面应该是一些静态的初始化配置
+     * 而这里的term随着当前节点选主的成功, 一直在保持实时更新
+     */
     @Override
     public boolean resetTerm(final long newTerm) {
         if (newTerm <= this.commonOptions.getTerm()) {
