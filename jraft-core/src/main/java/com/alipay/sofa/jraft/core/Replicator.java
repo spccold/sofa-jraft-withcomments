@@ -762,6 +762,8 @@ public class Replicator implements ThreadId.OnError {
      * Send probe or heartbeat request
      * @param isHeartbeat      if current entries is heartbeat
      * @param heartBeatClosure heartbeat callback
+     *
+     * 探针请求和心跳的区别是啥？作用于什么场景？
      */
     @SuppressWarnings("NonAtomicOperationOnVolatileField")
     private void sendEmptyEntries(final boolean isHeartbeat,
@@ -913,8 +915,10 @@ public class Replicator implements ThreadId.OnError {
         LOG.info("Replicator={}@{} is started", r.id, r.options.getPeerId());
         r.catchUpClosure = null;
         r.lastRpcSendTimestamp = Utils.monotonicMs();
+        // 启动定时心跳
         r.startHeartbeatTimer(Utils.nowMs());
         // id.unlock in sendEmptyEntries
+        // 发生探针请求
         r.sendProbeRequest();
         return r.id;
     }

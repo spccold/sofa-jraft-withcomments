@@ -89,6 +89,7 @@ public class ThreadId {
 
     public void join() {
         while (!this.destroyed) {
+            // 自旋锁
             ThreadHelper.onSpinWait();
         }
     }
