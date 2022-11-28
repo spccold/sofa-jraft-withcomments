@@ -185,8 +185,11 @@ public class LogManagerImpl implements LogManager {
                 LOG.error("Fail to init logStorage");
                 return false;
             }
+            // default is 1(start from 1, nor 0)
             this.firstLogIndex = this.logStorage.getFirstLogIndex();
+            // default is 0
             this.lastLogIndex = this.logStorage.getLastLogIndex();
+            // default diskId is (0,0)
             this.diskId = new LogId(this.lastLogIndex, getTermFromLogStorage(this.lastLogIndex));
             this.fsmCaller = opts.getFsmCaller();
             this.disruptor = DisruptorBuilder.<StableClosureEvent> newInstance() //
@@ -306,6 +309,7 @@ public class LogManagerImpl implements LogManager {
         boolean doUnlock = true;
         this.writeLock.lock();
         try {
+            // if leader, set logIndex here
             if (!entries.isEmpty() && !checkAndResolveConflict(entries, done, this.writeLock)) {
                 // If checkAndResolveConflict returns false, the done will be called in it.
                 entries.clear();
@@ -328,6 +332,7 @@ public class LogManagerImpl implements LogManager {
                 }
             }
             if (!entries.isEmpty()) {
+                // 设置每批entries中第一个entry的logIndex, 当当前批次log写成功, 用于commitIndex的更新
                 done.setFirstLogIndex(entries.get(0).getId().getIndex());
                 this.logsInMemory.addAll(entries);
             }
@@ -561,6 +566,7 @@ public class LogManagerImpl implements LogManager {
                 }
             }
             if (endOfBatch) {
+                // 记录日志的最新位置
                 this.lastId = this.ab.flush();
                 setDiskId(this.lastId);
             }
@@ -794,6 +800,9 @@ public class LogManagerImpl implements LogManager {
         return getTermFromLogStorage(index);
     }
 
+    /**
+     * term is 0 when index is 0
+     */
     private long getTermFromLogStorage(final long index) {
         final LogEntry entry = this.logStorage.getEntry(index);
         if (entry != null) {

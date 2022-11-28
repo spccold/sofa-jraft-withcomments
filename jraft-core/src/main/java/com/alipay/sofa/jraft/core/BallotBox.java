@@ -105,7 +105,7 @@ public class BallotBox implements Lifecycle<BallotBoxOptions>, Describer {
             if (this.pendingIndex == 0) {
                 return false;
             }
-            if (lastLogIndex < this.pendingIndex) {
+            if (lastLogIndex < this.pendingIndex) {// 什么场景下会发生？
                 return true;
             }
 
@@ -177,6 +177,7 @@ public class BallotBox implements Lifecycle<BallotBoxOptions>, Describer {
                     this.pendingMetaQueue.size());
                 return false;
             }
+            // newPendingIndex必须要大于lastCommittedIndex, 因为newPendingIndex是下一次需要commit的index
             if (newPendingIndex <= this.lastCommittedIndex) {
                 LOG.error("resetPendingIndex fail, newPendingIndex={}, lastCommittedIndex={}.", newPendingIndex,
                     this.lastCommittedIndex);

@@ -1304,6 +1304,7 @@ public class NodeImpl implements Node, RaftServerService {
         }
 
         // init commit manager
+        // 下一次待确认的committedIndex, 考虑pre term log recovery的场景, 这里的pendingIndex应该为lastLogIndex+1
         this.ballotBox.resetPendingIndex(this.logManager.getLastLogIndex() + 1);
         // Register _conf_ctx to reject configuration changing before the first log
         // is committed.
@@ -1350,6 +1351,7 @@ public class NodeImpl implements Node, RaftServerService {
         if (term > this.currTerm) {
             this.currTerm = term;
             this.votedId = PeerId.emptyPeer();
+            // 每次stepDown的时候, 都会持久化保存当前的term和voteId
             this.metaStorage.setTermAndVotedFor(term, this.votedId);
         }
 
@@ -1403,6 +1405,7 @@ public class NodeImpl implements Node, RaftServerService {
         @Override
         public void run(final Status status) {
             if (status.isOk()) {
+                // log commit at[firstLogIndex, lastLogIndex] when write success
                 NodeImpl.this.ballotBox.commitAt(this.firstLogIndex, this.firstLogIndex + this.nEntries - 1,
                     NodeImpl.this.serverId);
             } else {
