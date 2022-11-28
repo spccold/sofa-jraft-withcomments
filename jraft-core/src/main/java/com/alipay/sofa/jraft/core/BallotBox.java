@@ -105,14 +105,21 @@ public class BallotBox implements Lifecycle<BallotBoxOptions>, Describer {
             if (this.pendingIndex == 0) {
                 return false;
             }
-            if (lastLogIndex < this.pendingIndex) {// 什么场景下会发生？
+            /**
+             * 什么场景下会发生？
+             * 1. pre term log recovery场景下可能会发生, 提交历史term未提交的日志, 那么此时提交的
+             * log区间[firstLogIndex ~ lastLogIndex]可能在pendingIndex之前, 意味着需要继续同步,
+             * 直到>=pendingIndex的时候, 才可以达到commit的条件
+             */
+            if (lastLogIndex < this.pendingIndex) {
                 return true;
             }
 
             if (lastLogIndex >= this.pendingIndex + this.pendingMetaQueue.size()) {
                 throw new ArrayIndexOutOfBoundsException();
             }
-
+            // pre term log recovery场景下, firstLogIndex是可能会比pendingIndex小的, 需要把之前tern内的log完成复制
+            // 啥时firstLogIndex > pendingIndex? log持续复制, 但是前面的log还未commit, 导致pendingIndex未向后移动, 体现在一个batch中
             final long startAt = Math.max(this.pendingIndex, firstLogIndex);
             Ballot.PosHint hint = new Ballot.PosHint();
             for (long logIndex = startAt; logIndex <= lastLogIndex; logIndex++) {
