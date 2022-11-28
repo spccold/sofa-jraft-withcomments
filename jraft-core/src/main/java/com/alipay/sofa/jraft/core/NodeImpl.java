@@ -1454,6 +1454,7 @@ public class NodeImpl implements Node, RaftServerService {
                     continue;
                 }
                 // set task entry info before adding to list.
+                // 注意: 这里只设置了term, logIndex在logManager中设置(对leader而言, follow不需要, 因为logEntry来自于leader)
                 task.entry.getId().setTerm(this.currTerm);
                 task.entry.setType(EnumOutter.EntryType.ENTRY_TYPE_DATA);
                 entries.add(task.entry);
@@ -2007,7 +2008,7 @@ public class NodeImpl implements Node, RaftServerService {
 
             // Check term and state to step down
             checkStepDown(request.getTerm(), serverId);
-            if (!serverId.equals(this.leaderId)) {
+            if (!serverId.equals(this.leaderId)) {// i can't understand? 什么情况下会发生这种状况？
                 LOG.error("Another peer {} declares that it is the leader at term {} which was occupied by leader {}.",
                     serverId, this.currTerm, this.leaderId);
                 // Increase the term by 1 and make both leaders step down to minimize the

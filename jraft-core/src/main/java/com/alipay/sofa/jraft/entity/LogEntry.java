@@ -27,7 +27,7 @@ import com.alipay.sofa.jraft.entity.codec.v1.V1Encoder;
 import com.alipay.sofa.jraft.util.CrcUtil;
 
 /**
- * A replica log entry.
+ * A replica log entry.(type+data+id[logIndex+term])
  *
  * @author boyan (boyan@alibaba-inc.com)
  *

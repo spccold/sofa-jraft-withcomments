@@ -315,7 +315,7 @@ public class LogManagerImpl implements LogManager {
                 final LogEntry entry = entries.get(i);
                 // Set checksum after checkAndResolveConflict
                 if (this.raftOptions.isEnableLogEntryChecksum()) {
-                    entry.setChecksum(entry.checksum());
+                    entry.setChecksum(entry.checksum()); // 计算checksum值
                 }
                 if (entry.getType() == EntryType.ENTRY_TYPE_CONFIGURATION) {
                     Configuration oldConf = new Configuration();
@@ -1007,7 +1007,7 @@ public class LogManagerImpl implements LogManager {
     @SuppressWarnings("NonAtomicOperationOnVolatileField")
     private boolean checkAndResolveConflict(final List<LogEntry> entries, final StableClosure done, final Lock lock) {
         final LogEntry firstLogEntry = ArrayDeque.peekFirst(entries);
-        if (firstLogEntry.getId().getIndex() == 0) {
+        if (firstLogEntry.getId().getIndex() == 0) { // 注意: 这里只设置了term, logIndex在logManager中设置(对leader而言, follow不需要, 因为logEntry来自于leader)
             // Node is currently the leader and |entries| are from the user who
             // don't know the correct indexes the logs should assign to. So we have
             // to assign indexes to the appending entries
@@ -1139,6 +1139,7 @@ public class LogManagerImpl implements LogManager {
                 return;
             }
             this.appliedId = appliedId.copy();
+            // diskId 不可能比appliedId小吧
             clearId = this.diskId.compareTo(this.appliedId) <= 0 ? this.diskId : this.appliedId;
         } finally {
             this.writeLock.unlock();
