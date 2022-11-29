@@ -374,6 +374,7 @@ public class Replicator implements ThreadId.OnError {
     // In-flight request type
     enum RequestType {
         Snapshot, // install snapshot
+        // 包含心跳
         AppendEntries // replicate logs
     }
 
@@ -803,7 +804,7 @@ public class Replicator implements ThreadId.OnError {
             } else {
                 // No entries and has empty data means a probe request.
                 // TODO(boyan) refactor, adds a new flag field?
-                rb.setData(ByteString.EMPTY);
+                rb.setData(ByteString.EMPTY);// 为啥发送心跳的时候没有设置data?
                 final AppendEntriesRequest request = rb.build();
                 // Sending a probe request.
                 this.statInfo.runningState = RunningState.APPENDING_ENTRIES;
@@ -812,6 +813,7 @@ public class Replicator implements ThreadId.OnError {
                 this.probeCounter++;
                 setState(State.Probe);
                 final int stateVersion = this.version;
+                // 获取reqSeq(p.s. 发送心跳的时候没有这个过程)
                 final int seq = getAndIncrementReqSeq();
                 final Future<Message> rpcFuture = this.rpcService.appendEntries(this.options.getPeerId().getEndpoint(),
                     request, -1, new RpcResponseClosureAdapter<AppendEntriesResponse>() {
@@ -1328,6 +1330,7 @@ public class Replicator implements ThreadId.OnError {
                     }
                     continue;
                 }
+                // pipeline模式下, 先发送的请求先响应
                 if (inflight.seq != queuedPipelinedResponse.seq) {
                     // reset state
                     LOG.warn(
@@ -1548,7 +1551,7 @@ public class Replicator implements ThreadId.OnError {
 
     private boolean fillCommonFields(final AppendEntriesRequest.Builder rb, long prevLogIndex, final boolean isHeartbeat) {
         final long prevLogTerm = this.options.getLogManager().getTerm(prevLogIndex);
-        if (prevLogTerm == 0 && prevLogIndex != 0) {
+        if (prevLogTerm == 0 && prevLogIndex != 0) {// 啥时回发生这种场景？
             if (!isHeartbeat) {
                 Requires.requireTrue(prevLogIndex < this.options.getLogManager().getFirstLogIndex());
                 LOG.debug("logIndex={} was compacted", prevLogIndex);
