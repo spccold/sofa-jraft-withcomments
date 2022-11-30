@@ -252,6 +252,7 @@ public class AppendEntriesRequestProcessor extends NodeRequestProcessor<AppendEn
             super();
             this.pair = pair;
             this.groupId = groupId;
+            // multiple producer single consumer
             this.executor = new MpscSingleThreadExecutor(Utils.MAX_APPEND_ENTRIES_TASKS_PER_THREAD,
                 JRaftUtils.createThreadFactory(groupId + "/" + pair + "-AppendEntriesThread"));
 
@@ -442,6 +443,9 @@ public class AppendEntriesRequestProcessor extends NodeRequestProcessor<AppendEn
         return request.getEntriesCount() == 0 && !request.hasData();
     }
 
+    /**
+     * 单线程按顺序处理日志复制请求
+     */
     @Override
     public Message processRequest0(final RaftServerService service, final AppendEntriesRequest request,
                                    final RpcRequestClosure done) {

@@ -256,6 +256,7 @@ public class MpscSingleThreadExecutor implements SingleThreadExecutor {
     }
 
     private void doStartWorker() {
+        // ThreadPerTaskExecutor
         this.executor.execute(() -> {
             MpscSingleThreadExecutor.this.worker = new Worker(Thread.currentThread());
 
