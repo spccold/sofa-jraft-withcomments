@@ -96,6 +96,7 @@ public class IteratorImpl {
     public void next() {
         this.currEntry = null; //release current entry
         //get next entry
+        // initial value equal to lastAppliedIndex
         if (this.currentIndex <= this.committedIndex) {
             ++this.currentIndex;
             if (this.currentIndex <= this.committedIndex) {
@@ -111,6 +112,7 @@ public class IteratorImpl {
                     getOrCreateError().setType(EnumOutter.ErrorType.ERROR_TYPE_LOG);
                     getOrCreateError().getStatus().setError(RaftError.EINVAL, e.getMessage());
                 }
+                // 记录当前正在apply的log index
                 this.applyingIndex.set(this.currentIndex);
             }
         }

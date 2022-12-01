@@ -89,11 +89,11 @@ public class CounterStateMachine extends StateMachineAdapter {
             CounterOperation counterOperation = null;
 
             CounterClosure closure = null;
-            if (iter.done() != null) {
+            if (iter.done() != null) {// leader上执行
                 // This task is applied by this node, get value from closure to avoid additional parsing.
                 closure = (CounterClosure) iter.done();
                 counterOperation = closure.getCounterOperation();
-            } else {
+            } else { // follower上执行, 需要从日志中恢复执行动作, 应用到状态机
                 // Have to parse FetchAddRequest from this user log.
                 final ByteBuffer data = iter.getData();
                 try {
