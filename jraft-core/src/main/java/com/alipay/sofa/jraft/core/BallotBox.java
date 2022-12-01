@@ -109,7 +109,7 @@ public class BallotBox implements Lifecycle<BallotBoxOptions>, Describer {
              * 什么场景下会发生？
              * 1. pre term log recovery场景下可能会发生, 提交历史term未提交的日志, 那么此时提交的
              * log区间[firstLogIndex ~ lastLogIndex]可能在pendingIndex之前, 意味着需要继续同步,
-             * 直到>=pendingIndex的时候, 才可以达到commit的条件
+             * 直到>=pendingIndex的时候, 才可以达到commit的条件, 才有往下继续走的必要
              */
             if (lastLogIndex < this.pendingIndex) {
                 return true;
@@ -125,7 +125,7 @@ public class BallotBox implements Lifecycle<BallotBoxOptions>, Describer {
             for (long logIndex = startAt; logIndex <= lastLogIndex; logIndex++) {
                 final Ballot bl = this.pendingMetaQueue.get((int) (logIndex - this.pendingIndex));
                 hint = bl.grant(peer, hint);
-                if (bl.isGranted()) {
+                if (bl.isGranted()) {// 超过半数同步成功
                     lastCommittedIndex = logIndex;
                 }
             }
@@ -219,7 +219,9 @@ public class BallotBox implements Lifecycle<BallotBoxOptions>, Describer {
                 LOG.error("Fail to appendingTask, pendingIndex={}.", this.pendingIndex);
                 return false;
             }
+            // SegmentList
             this.pendingMetaQueue.add(bl);
+            // LinkedList
             this.closureQueue.appendPendingClosure(done);
             return true;
         } finally {
