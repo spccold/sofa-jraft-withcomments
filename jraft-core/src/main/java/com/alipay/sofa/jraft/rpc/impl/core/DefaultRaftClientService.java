@@ -117,6 +117,7 @@ public class DefaultRaftClientService extends AbstractClientService implements R
     @Override
     public Future<Message> appendEntries(final Endpoint endpoint, final AppendEntriesRequest request,
                                          final int timeoutMs, final RpcResponseClosure<AppendEntriesResponse> done) {
+        // SingleThreadExecutor
         final Executor executor = this.appendEntriesExecutorMap.computeIfAbsent(endpoint, k -> appendEntriesExecutors.next());
 
         if (!checkConnection(endpoint, true)) {

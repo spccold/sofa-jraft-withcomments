@@ -89,6 +89,11 @@ public class Replicator implements ThreadId.OnError {
 
     private final RaftClientService          rpcService;
     // Next sending log index
+    /**
+     * only be updated in
+     * 1. onInstallSnapshotReturned
+     * 2. onAppendEntriesReturned
+     */
     private volatile long                    nextIndex;
     private int                              consecutiveErrorTimes  = 0;
     private boolean                          hasSucceeded;
@@ -596,6 +601,7 @@ public class Replicator implements ThreadId.OnError {
             return -1L;
         }
         // Last request should be a AppendEntries request and has some entries.
+        // rpcInFly记录了log最后同步的点位信息
         if (this.rpcInFly != null && this.rpcInFly.isSendingLogEntries()) {
             return this.rpcInFly.startIndex + this.rpcInFly.count;
         }
@@ -1213,6 +1219,7 @@ public class Replicator implements ThreadId.OnError {
                 return;
             }
             r.consecutiveErrorTimes = 0;
+            // 心跳响应中收到了更大的term
             if (response.getTerm() > r.options.getTerm()) {
                 if (isLogDebugEnabled) {
                     sb.append(" fail, greater term ") //
@@ -1277,6 +1284,7 @@ public class Replicator implements ThreadId.OnError {
         }
 
         final PriorityQueue<RpcResponse> holdingQueue = r.pendingResponses;
+        // PriorityQueue, 按照seq排序
         holdingQueue.add(new RpcResponse(reqType, seq, status, request, response, rpcSendTime));
 
         if (holdingQueue.size() > r.raftOptions.getMaxReplicatorInflightMsgs()) {
@@ -1300,9 +1308,12 @@ public class Replicator implements ThreadId.OnError {
         try {
             int processed = 0;
             while (!holdingQueue.isEmpty()) {
+                // PriorityQueue
                 final RpcResponse queuedPipelinedResponse = holdingQueue.peek();
 
                 // Sequence mismatch, waiting for next response.
+                // 服务端已经按照先接收, 先响应的原则处理了, 我暂时还未想到其他可能导致发送端会接收到不一致顺序响应的场景？
+                // any way, 这样处理下更保险, 确保我现在的响应可以和顺序发送的请求对应起来
                 if (queuedPipelinedResponse.seq != r.requiredNextSeq) {
                     if (processed > 0) {
                         if (isLogDebugEnabled) {
@@ -1330,7 +1341,7 @@ public class Replicator implements ThreadId.OnError {
                     }
                     continue;
                 }
-                // pipeline模式下, 先发送的请求先响应
+                // 什么场景下会发生这种状况？
                 if (inflight.seq != queuedPipelinedResponse.seq) {
                     // reset state
                     LOG.warn(
@@ -1371,6 +1382,7 @@ public class Replicator implements ThreadId.OnError {
                     .append(continueSendEntries);
                 LOG.debug(sb.toString());
             }
+            // 持续发送
             if (continueSendEntries) {
                 // unlock in sendEntries.
                 r.sendEntries();
@@ -1394,7 +1406,7 @@ public class Replicator implements ThreadId.OnError {
                                                    final AppendEntriesRequest request,
                                                    final AppendEntriesResponse response, final long rpcSendTime,
                                                    final long startTimeMs, final Replicator r) {
-        if (inflight.startIndex != request.getPrevLogIndex() + 1) {
+        if (inflight.startIndex != request.getPrevLogIndex() + 1) {// when and why?
             LOG.warn(
                 "Replicator {} received invalid AppendEntriesResponse, in-flight startIndex={}, request prevLogIndex={}, reset the replicator state and probe again.",
                 r, inflight.startIndex, request.getPrevLogIndex());
@@ -1539,6 +1551,7 @@ public class Replicator implements ThreadId.OnError {
 
         r.setState(State.Replicate);
         r.blockTimer = null;
+        // 更新log的nextIndex
         r.nextIndex += entriesSize;
         r.hasSucceeded = true;
         r.notifyOnCaughtUp(RaftError.SUCCESS.getNumber(), false);
