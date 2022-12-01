@@ -324,8 +324,11 @@ public class AppendEntriesRequestProcessor extends NodeRequestProcessor<AppendEn
 
             if (!ctx.hasTooManyPendingResponses()) {
                 while (!respQueue.isEmpty()) {
+                    // PriorityQueue, 按照seq排序, 0>1>2>3>......seq, 按照这样的顺序出队
                     final SequenceMessage queuedPipelinedResponse = respQueue.peek();
-
+                    // ctx.getNextRequiredSequence() 从0开始自增, 即使seq=1或者seq=2的响应先返回, 这里的1 !=0, 2!=0
+                    // seq=0的resp返回的时候, 这里的条件才会成立, 这样才可以保证先接收到的请求先响应(请求的接收次序靠PeerExecutorSelector
+                    // 保证, 队列按顺序接收[tcp保证有序], 然后单线程处理)
                     if (queuedPipelinedResponse.sequence != ctx.getNextRequiredSequence()) {
                         // sequence mismatch, waiting for next response.
                         break;
@@ -334,6 +337,7 @@ public class AppendEntriesRequestProcessor extends NodeRequestProcessor<AppendEn
                     try {
                         queuedPipelinedResponse.sendResponse();
                     } finally {
+                        // 自增下一次待处理的seq
                         ctx.getAndIncrementNextRequiredSequence();
                     }
                 }
