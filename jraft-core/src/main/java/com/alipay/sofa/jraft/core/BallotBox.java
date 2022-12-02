@@ -53,6 +53,18 @@ public class BallotBox implements Lifecycle<BallotBoxOptions>, Describer {
     private FSMCaller                 waiter;
     private ClosureQueue              closureQueue;
     private final StampedLock         stampedLock        = new StampedLock();
+    /**
+     * 对于leader而言:
+     * 一个新的leader选举出来之后, lastCommittedIndex是不知道的, 默认为0
+     * 等新的term下出现新的log entry被commit之后, lastCommittedIndex才会有值, 后续随着log的commit一直变化
+     * @see #commitAt
+     *
+     * 对于follower而言:
+     * last commit index的变化
+     * @see #setLastCommittedIndex
+     * 间接变化来自于
+     * @see NodeImpl#handleAppendEntriesRequest
+     */
     private long                      lastCommittedIndex = 0;
     private long                      pendingIndex;
     private final SegmentList<Ballot> pendingMetaQueue   = new SegmentList<>(false);

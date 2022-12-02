@@ -1917,6 +1917,13 @@ public class NodeImpl implements Node, RaftServerService {
                                      final AppendEntriesResponse.Builder responseBuilder, final NodeImpl node,
                                      final RpcRequestClosure done, final long term) {
             super(null);
+            /**
+             * 正常来说, 来着leader的commit index不可能比prev log index+entry count小, 对于网络连通正常的节点, 同步是很快的,
+             * commit index 很可能等于prev log index, 即上一次的log已经快速完成了半数节点的同步(期中包含了当前节点), 然后下一个log继续同步
+             * 但是对应和leader之间存在网络异常(和leader断连过, 网络拥堵等情况)的follower, 当前的日志可能会落下leader比较多, leader之前的
+             * 日志已经在其他follow节点上完成了半数同步, commit index在不断增长, 但是当前的follow一直跟不上节奏, 当前同步的日志可能是整个集群
+             * 已经commit完成的日志, 那么对应这种情况, 遗留日志(log index <= leader commit index的日志)同步过来之后就应该需要被立即commit
+             */
             this.committedIndex = Math.min(
             // committed index is likely less than the lastLogIndex
                 request.getCommittedIndex(),
