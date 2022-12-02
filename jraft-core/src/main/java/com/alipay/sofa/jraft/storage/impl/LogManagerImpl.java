@@ -334,6 +334,7 @@ public class LogManagerImpl implements LogManager {
             if (!entries.isEmpty()) {
                 // 设置每批entries中第一个entry的logIndex, 当当前批次log写成功, 用于commitIndex的更新
                 done.setFirstLogIndex(entries.get(0).getId().getIndex());
+                // 内存里面也放一份, 加速LogEntry的访问(commitIndex更新之后, 会把内存中commitIndex之前的LogEntry清掉)
                 this.logsInMemory.addAll(entries);
             }
             done.setEntries(entries);
