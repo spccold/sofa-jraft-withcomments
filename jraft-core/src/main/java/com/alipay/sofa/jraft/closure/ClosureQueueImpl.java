@@ -126,6 +126,7 @@ public class ClosureQueueImpl implements ClosureQueue {
         this.lock.lock();
         try {
             final int queueSize = this.queue.size();
+            // 对于follower节点, queueSize应该为0
             if (queueSize == 0 || endIndex < this.firstIndex) {
                 return endIndex + 1;
             }

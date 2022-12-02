@@ -162,6 +162,7 @@ public class FSMCallerImpl implements FSMCaller {
     private LogManager                                              logManager;
     private StateMachine                                            fsm;
     private ClosureQueue                                            closureQueue;
+    // lastAppliedIndex & lastCommittedIndex 都是存放在内存中的, 重启之后就丢失了
     private final AtomicLong                                        lastAppliedIndex;
     private final AtomicLong                                        lastCommittedIndex;
     private long                                                    lastAppliedTerm;
@@ -522,6 +523,7 @@ public class FSMCallerImpl implements FSMCaller {
         try {
             final List<Closure> closures = new ArrayList<>();
             final List<TaskClosure> taskClosures = new ArrayList<>();
+            // 对应follower节点, firstClosureIndex = committedIndex + 1
             final long firstClosureIndex = this.closureQueue.popClosureUntil(committedIndex, closures, taskClosures);
 
             // Calls TaskClosure#onCommitted if necessary

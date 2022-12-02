@@ -66,6 +66,7 @@ public class BallotBox implements Lifecycle<BallotBoxOptions>, Describer {
      * @see NodeImpl#handleAppendEntriesRequest
      */
     private long                      lastCommittedIndex = 0;
+    // pendingIndex and pendingMetaQueue only for leader
     private long                      pendingIndex;
     private final SegmentList<Ballot> pendingMetaQueue   = new SegmentList<>(false);
 
@@ -265,6 +266,7 @@ public class BallotBox implements Lifecycle<BallotBoxOptions>, Describer {
                 this.lastCommittedIndex = lastCommittedIndex;
                 this.stampedLock.unlockWrite(stamp);
                 doUnlock = false;
+                // follower应用log到状态机
                 this.waiter.onCommitted(lastCommittedIndex);
             }
         } finally {
