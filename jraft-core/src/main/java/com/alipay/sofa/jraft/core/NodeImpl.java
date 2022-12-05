@@ -1258,10 +1258,10 @@ public class NodeImpl implements Node, RaftServerService {
         if (requestTerm > this.currTerm) {// 新的leader的term更高, 执行stepDown
             status.setError(RaftError.ENEWLEADER, "Raft node receives message from new leader with higher term.");
             stepDown(requestTerm, false, status);
-        } else if (this.state != State.STATE_FOLLOWER) { // 这里为啥term一定相等？requestTerm < this.currTerm 没有可能吗？
+        } else if (this.state != State.STATE_FOLLOWER) {
             status.setError(RaftError.ENEWLEADER, "Candidate receives message from new leader with the same term.");
             stepDown(requestTerm, false, status);
-        } else if (this.leaderId.isEmpty()) { // 这里为啥term一定相等？requestTerm < this.currTerm 没有可能吗？
+        } else if (this.leaderId.isEmpty()) {
             status.setError(RaftError.ENEWLEADER, "Follower receives message from new leader with the same term.");
             stepDown(requestTerm, false, status);
         }

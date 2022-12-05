@@ -1395,6 +1395,11 @@ public class Replicator implements ThreadId.OnError {
      */
     void resetInflights() {
         this.version++;
+        /**
+         * important: 清空inflights, 当发现pipeline的某个批次失败, 则重置整个pipeline
+         * 从nextIndex处重新发送
+         * @see #getNextSendIndex()
+         */
         this.inflights.clear();
         this.pendingResponses.clear();
         final int rs = Math.max(this.reqSeq, this.requiredNextSeq);
@@ -1506,12 +1511,15 @@ public class Replicator implements ThreadId.OnError {
             if (response.getLastLogIndex() + 1 < r.nextIndex) {
                 LOG.debug("LastLogIndex at peer={} is {}", r.options.getPeerId(), response.getLastLogIndex());
                 // The peer contains less logs than leader
+                // 从follower缺失的部分开始同步
                 r.nextIndex = response.getLastLogIndex() + 1;
             } else {
                 // The peer contains logs from old term which should be truncated,
                 // decrease _last_log_at_peer by one to test the right index to keep
                 if (r.nextIndex > 1) {
                     LOG.debug("logIndex={} dismatch", r.nextIndex);
+                    // 需要清空follower上部分log的场景下(和leader不一致, log只从leader向follower进行单向复制), 需要不断的减少log index, 直到找到
+                    // 和当前leader 内容一直的index, 然后从对应的位置开始同步
                     r.nextIndex--;
                 } else {
                     LOG.error("Peer={} declares that log at index=0 doesn't match, which is not supposed to happen",
