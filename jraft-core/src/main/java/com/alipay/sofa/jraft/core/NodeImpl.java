@@ -1249,7 +1249,8 @@ public class NodeImpl implements Node, RaftServerService {
      * 只会在以下方法中被调用
      * 1. handleInstallSnapshot
      * 2. handleAppendEntriesRequest
-     * 说明请求一定是来自于leader
+     * 说明请求一定是来自于leader(不管是实时的leader, 还是已经过期的leader[网络分区太久, 集群中已经有了新的leader])
+     * requestTerm < this.currTerm的情况已经在checkStepDown方法调用前处理了
      */
     // in writeLock
     private void checkStepDown(final long requestTerm, final PeerId serverId) {
