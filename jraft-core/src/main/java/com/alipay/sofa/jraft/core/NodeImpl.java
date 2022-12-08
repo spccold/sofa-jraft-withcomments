@@ -1645,6 +1645,7 @@ public class NodeImpl implements Node, RaftServerService {
 
         ReadOnlyOption readOnlyOpt = ReadOnlyOption.valueOfWithDefault(request.getReadOnlyOptions(),
             this.raftOptions.getReadOnlyOptions());
+        // leader lease超时的话, 则降级到leader read
         if (readOnlyOpt == ReadOnlyOption.ReadOnlyLeaseBased && !isLeaderLeaseValid()) {
             // If leader lease timeout, we must change option to ReadOnlySafe
             readOnlyOpt = ReadOnlyOption.ReadOnlySafe;
