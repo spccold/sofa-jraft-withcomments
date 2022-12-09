@@ -1319,6 +1319,10 @@ public class NodeImpl implements Node, RaftServerService {
 
     /**
      * stepDown = step down, 翻译成辞职,下台比较合适, 意思是外界条件已经发生变化, 一切状态需要清零并重新开始
+     * 1. 如果当前状态是candidate, 正处于投票过程中, 则停止投票(停止投票超时检查), 状态转化为follower
+     *  1.1 注意, 只是停止超时投票检查, 但是leader超时检测的timer还得继续运行(electionTimer.restart()),
+     *      回归最初的follower状态之后, 还得具备选主的能力(不过stepDown的时候, lastLeaderTimestamp会更新, 这样仿佛回到了超时探测的起始状态)
+     * 2. 更新接收到的更大的term为当前节点的term, 同时清空votedId记录, 并持久化
      */
     // should be in writeLock
     private void stepDown(final long term, final boolean wakeupCandidate, final Status status) {
@@ -1331,6 +1335,7 @@ public class NodeImpl implements Node, RaftServerService {
             stopVoteTimer();
         } else if (this.state.compareTo(State.STATE_TRANSFERRING) <= 0) { // 状态处于leader或者leader交接过程中
             stopStepDownTimer();
+            // 这个action需要理解下 ?
             this.ballotBox.clearPendingTasks();
             // signal fsm leader stop immediately
             if (this.state == State.STATE_LEADER) {
@@ -1719,7 +1724,6 @@ public class NodeImpl implements Node, RaftServerService {
      * 1. 如果当前节点还未与leader节点失联, 则拒绝投票(有效处理非对称网络分区场景造成的stepDown问题, braft & sofa-jraft)
      * 2. 请求term < 当前节点term, 拒绝投票(正式vote过程中的常规判断, 见raft官方论文)
      * 3. 如果请求节点的日志比当前节点的日志旧, 拒绝投票(正式vote过程中的常规判断, 见raft官方论文)
-     * FIXME add kgw
      */
     @Override
     public Message handlePreVoteRequest(final RequestVoteRequest request) {
@@ -1750,13 +1754,14 @@ public class NodeImpl implements Node, RaftServerService {
                         request.getServerId(), this.conf);
                     break;
                 }
+                // isCurrentLeaderValid() 用于解决对称网络分区异常下的异常(term不停自增, 网络恢复后导致当前leader的lease被中断)
                 if (this.leaderId != null && !this.leaderId.isEmpty() && isCurrentLeaderValid()) {
                     LOG.info(
                         "Node {} ignore PreVoteRequest from {}, term={}, currTerm={}, because the leader {}'s lease is still valid.",
                         getNodeId(), request.getServerId(), request.getTerm(), this.currTerm, this.leaderId);
                     break;
                 }
-                if (request.getTerm() < this.currTerm) {
+                if (request.getTerm() < this.currTerm) {// term至少得是>=当前节点的term, 才有可能考虑为你投票, 否则靠边站
                     LOG.info("Node {} ignore PreVoteRequest from {}, term={}, currTerm={}.", getNodeId(),
                         request.getServerId(), request.getTerm(), this.currTerm);
                     // A follower replicator may not be started when this node become leader, so we must check it.
@@ -1765,6 +1770,7 @@ public class NodeImpl implements Node, RaftServerService {
                 }
                 // A follower replicator may not be started when this node become leader, so we must check it.
                 // check replicator state
+                // 避免由于和对端节点还未建立连接, 心跳等信息无法快速传达到对端节点, 而导致对端节点持续发起选举操作
                 checkReplicator(candidateId);
 
                 doUnlock = false;
@@ -1829,7 +1835,13 @@ public class NodeImpl implements Node, RaftServerService {
     }
 
     /**
-     * 处理正式的投票请求
+     * 处理正式的投票请求(
+     * 和preVote的处理流程相比, preVote是没有stepDown步骤的, 只是判断term新旧而已,
+     * 其次preVote有检验isCurrentLeaderValid的过程, 这个步骤其实是preVote的主要价值所在, 其次
+     * preVote没有记录votedId和持久化VotedId的过程)
+     * 1. 校验投票请求的term是否符合要求(>=), 如果请求的term大于当前term, 则当前节点进行stepDown操作
+     * 2. 校验日志新旧问题
+     * 3. 持久化记录votedFor
      */
     @Override
     public Message handleRequestVoteRequest(final RequestVoteRequest request) {
@@ -2627,7 +2639,10 @@ public class NodeImpl implements Node, RaftServerService {
     public void handleRequestVoteResponse(final PeerId peerId, final long term, final RequestVoteResponse response) {
         this.writeLock.lock();
         try {
-            if (this.state != State.STATE_CANDIDATE) {
+            // ====================================================================================
+            // preVote请求发起之后可能状态发生了变化(比如接收到了leader的心跳), 或者接收到了term更高的preVote or Vote请求, 那么
+            // 对于之前发启动的preVote的结果需要忽略掉, 因为投票的条件已经发生了变化
+            if (this.state != State.STATE_CANDIDATE) {// p.s. preVote成功之后, state才从follower转变成candidate
                 LOG.warn("Node {} received invalid RequestVoteResponse from {}, state not in STATE_CANDIDATE but {}.",
                     getNodeId(), peerId, this.state);
                 return;
@@ -2638,6 +2653,7 @@ public class NodeImpl implements Node, RaftServerService {
                     peerId, term, this.currTerm);
                 return;
             }
+            // ====================================================================================
             // check response term
             if (response.getTerm() > this.currTerm) {
                 LOG.warn("Node {} received invalid RequestVoteResponse from {}, term={}, expect={}.", getNodeId(),
@@ -2689,6 +2705,9 @@ public class NodeImpl implements Node, RaftServerService {
         boolean doUnlock = true;
         this.writeLock.lock();
         try {
+            // ====================================================================================
+            // preVote请求发起之后可能状态发生了变化(比如接收到了leader的心跳), 或者接收到了term更高的preVote or Vote请求, 那么
+            // 对于之前发启动的preVote的结果需要忽略掉, 因为投票的条件已经发生了变化
             if (this.state != State.STATE_FOLLOWER) {
                 LOG.warn("Node {} received invalid PreVoteResponse from {}, state not in STATE_FOLLOWER but {}.",
                     getNodeId(), peerId, this.state);
@@ -2699,6 +2718,7 @@ public class NodeImpl implements Node, RaftServerService {
                     peerId, term, this.currTerm);
                 return;
             }
+            // ====================================================================================
             if (response.getTerm() > this.currTerm) {
                 LOG.warn("Node {} received invalid PreVoteResponse from {}, term {}, expect={}.", getNodeId(), peerId,
                     response.getTerm(), this.currTerm);
