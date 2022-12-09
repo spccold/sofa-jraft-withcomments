@@ -1323,6 +1323,7 @@ public class NodeImpl implements Node, RaftServerService {
      *  1.1 注意, 只是停止超时投票检查, 但是leader超时检测的timer还得继续运行(electionTimer.restart()),
      *      回归最初的follower状态之后, 还得具备选主的能力(不过stepDown的时候, lastLeaderTimestamp会更新, 这样仿佛回到了超时探测的起始状态)
      * 2. 更新接收到的更大的term为当前节点的term, 同时清空votedId记录, 并持久化
+     * 3. destroy所有的replicator(if wakeupCandidate=false)
      */
     // should be in writeLock
     private void stepDown(final long term, final boolean wakeupCandidate, final Status status) {
@@ -1356,8 +1357,10 @@ public class NodeImpl implements Node, RaftServerService {
         // meta state
         if (term > this.currTerm) {
             this.currTerm = term;
+            // 每次stepDown的时候, 当出现更高的term时, 都会情况voteId并持久化保存
+            // 一定是遇到了更高的term才执行这个逻辑, 因为每个节点的每个term下, 最多只给一个candidateId发起投票
+            // 未出现更高的term, 则要保留之前term的投票记录, 避免重复投票的情况出现
             this.votedId = PeerId.emptyPeer();
-            // 每次stepDown的时候, 都会持久化保存当前的term和voteId
             this.metaStorage.setTermAndVotedFor(term, this.votedId);
         }
 
@@ -2032,7 +2035,7 @@ public class NodeImpl implements Node, RaftServerService {
 
             // Check term and state to step down
             checkStepDown(request.getTerm(), serverId);
-            if (!serverId.equals(this.leaderId)) {// i can't understand? 什么情况下会发生这种状况？
+            if (!serverId.equals(this.leaderId)) {// i can't understand? 什么情况下会发生这种状况？脑裂恢复?
                 LOG.error("Another peer {} declares that it is the leader at term {} which was occupied by leader {}.",
                     serverId, this.currTerm, this.leaderId);
                 // Increase the term by 1 and make both leaders step down to minimize the
