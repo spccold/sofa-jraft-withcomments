@@ -90,7 +90,7 @@ public class ConfigurationEntry {
 
     /**
      * Returns true when the conf entry is valid.
-     *
+     * peer中不能包含learner, 否则配置非法
      * @return if the the entry is valid
      */
     public boolean isValid() {

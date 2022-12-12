@@ -66,7 +66,7 @@ public class AddPeerRequestProcessor extends BaseCliRequestProcessor<AddPeerRequ
                     for (final PeerId oldPeer : oldPeers) {
                         rb.addOldPeers(oldPeer.toString());
                         rb.addNewPeers(oldPeer.toString());
-                        if (oldPeer.equals(addingPeer)) {
+                        if (oldPeer.equals(addingPeer)) { // 这个可能发生吗？addPeer开始的时候已经做了去重啊
                             alreadyExists = true;
                         }
                     }

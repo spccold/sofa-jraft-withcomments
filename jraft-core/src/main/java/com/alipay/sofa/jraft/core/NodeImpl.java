@@ -191,6 +191,7 @@ public class NodeImpl implements Node, RaftServerService {
     private RaftOptions                                                    raftOptions;
     private final PeerId                                                   serverId;
     /** Other services */
+    // 处理配置的相关变更处理逻辑
     private final ConfigurationCtx                                         confCtx;
     private LogStorage                                                     logStorage;
     private RaftMetaStorage                                                metaStorage;
@@ -389,6 +390,7 @@ public class NodeImpl implements Node, RaftServerService {
             final Configuration adding = new Configuration();
             final Configuration removing = new Configuration();
             newConf.diff(oldConf, adding, removing);
+            // 变化的节点数量
             this.nchanges = adding.size() + removing.size();
 
             addNewLearners();
@@ -2479,7 +2481,7 @@ public class NodeImpl implements Node, RaftServerService {
         Requires.requireTrue(new ConfigurationEntry(null, newConf, oldConf).isValid(), "Invalid conf entry: %s",
             newConf);
 
-        if (this.state != State.STATE_LEADER) {
+        if (this.state != State.STATE_LEADER) { // 只能在leader上处理
             LOG.warn("Node {} refused configuration changing as the state={}.", getNodeId(), this.state);
             if (done != null) {
                 final Status status = new Status();
