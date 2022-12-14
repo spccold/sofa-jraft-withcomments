@@ -328,6 +328,7 @@ public class LogManagerImpl implements LogManager {
                     }
                     final ConfigurationEntry conf = new ConfigurationEntry(entry.getId(),
                         new Configuration(entry.getPeers(), entry.getLearners()), oldConf);
+                    // 如果发现是配置log, 则内存中也放一份
                     this.configManager.add(conf);
                 }
             }
@@ -340,7 +341,7 @@ public class LogManagerImpl implements LogManager {
             done.setEntries(entries);
 
             doUnlock = false;
-            if (!wakeupAllWaiter(this.writeLock)) {
+            if (!wakeupAllWaiter(this.writeLock)) { // 这个是干啥的?
                 notifyLastLogIndexListeners();
             }
 
@@ -567,7 +568,7 @@ public class LogManagerImpl implements LogManager {
                 }
             }
             if (endOfBatch) {
-                // 记录日志的最新位置
+                // 记录已写入日志的最新位置
                 this.lastId = this.ab.flush();
                 setDiskId(this.lastId);
             }
@@ -593,11 +594,13 @@ public class LogManagerImpl implements LogManager {
                 return;
             }
             this.diskId = id;
+            // diskId可能会比appliedId小吗?  apply的前提一定是当前日志写成功了之后才能apply啊
+            // 相等应该还是有可能的, 比如写入磁盘成功之后, 立刻完成commit和apply, 那么这时就可能相等?
             clearId = this.diskId.compareTo(this.appliedId) <= 0 ? this.diskId : this.appliedId;
         } finally {
             this.writeLock.unlock();
         }
-        if (clearId != null) {
+        if (clearId != null) { // 基本上是把已经apply的日志全部从内存中清理掉
             clearMemoryLogs(clearId);
         }
     }

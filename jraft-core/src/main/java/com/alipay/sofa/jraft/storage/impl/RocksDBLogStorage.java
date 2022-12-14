@@ -484,7 +484,7 @@ public class RocksDBLogStorage implements LogStorage, Describer {
         }
         return 0;
     }
-
+    // 为啥配置类似的log需要在2个column family都添加 ?
     private void addConfBatch(final LogEntry entry, final WriteBatch batch) throws RocksDBException {
         final byte[] ks = getKeyBytes(entry.getId().getIndex());
         final byte[] content = this.logEntryEncoder.encode(entry);
