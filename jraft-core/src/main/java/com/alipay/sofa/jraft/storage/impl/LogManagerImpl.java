@@ -995,7 +995,7 @@ public class LogManagerImpl implements LogManager {
     }
 
     private void unsafeTruncateSuffix(final long lastIndexKept, final Lock lock) {
-        if (lastIndexKept < this.appliedId.getIndex()) {
+        if (lastIndexKept < this.appliedId.getIndex()) {// 已经被提交的index不能被清理掉, 这种情况应该不会发生吧?
             LOG.error("FATAL ERROR: Can't truncate logs before appliedId={}, lastIndexKept={}", this.appliedId,
                 lastIndexKept);
             return;
@@ -1017,19 +1017,21 @@ public class LogManagerImpl implements LogManager {
     @SuppressWarnings("NonAtomicOperationOnVolatileField")
     private boolean checkAndResolveConflict(final List<LogEntry> entries, final StableClosure done, final Lock lock) {
         final LogEntry firstLogEntry = ArrayDeque.peekFirst(entries);
-        if (firstLogEntry.getId().getIndex() == 0) { // 注意: 这里只设置了term, logIndex在logManager中设置(对leader而言, follow不需要, 因为logEntry来自于leader)
+        if (firstLogEntry.getId().getIndex() == 0) { // leader处理逻辑
             // Node is currently the leader and |entries| are from the user who
             // don't know the correct indexes the logs should assign to. So we have
             // to assign indexes to the appending entries
+
+            // 注意: 这里只设置了term, logIndex在logManager中设置(对leader而言, follow不需要, 因为logEntry来自于leader)
             for (int i = 0; i < entries.size(); i++) {
                 entries.get(i).getId().setIndex(++this.lastLogIndex);
             }
             return true;
-        } else {
+        } else { // follower处理逻辑
             // Node is currently a follower and |entries| are from the leader. We
             // should check and resolve the conflicts between the local logs and
             // |entries|
-            if (firstLogEntry.getId().getIndex() > this.lastLogIndex + 1) {
+            if (firstLogEntry.getId().getIndex() > this.lastLogIndex + 1) { // 日志同步出现了空隙了, 丢了部分日志
                 ThreadPoolsFactory.runClosureInThread(this.groupId, done, new Status(RaftError.EINVAL,
                     "There's gap between first_index=%d and last_log_index=%d", firstLogEntry.getId().getIndex(),
                     this.lastLogIndex));
@@ -1045,15 +1047,17 @@ public class LogManagerImpl implements LogManager {
                 ThreadPoolsFactory.runClosureInThread(this.groupId, done);
                 return false;
             }
-            if (firstLogEntry.getId().getIndex() == this.lastLogIndex + 1) {
+            if (firstLogEntry.getId().getIndex() == this.lastLogIndex + 1) { // 正好续上
                 // fast path
                 this.lastLogIndex = lastLogEntry.getId().getIndex();
-            } else {
+            } else { // 同步的日志index和当前follower的本地日志出现部分重复, 可能是一个新的leader出现, 需要覆盖其他follower本地日志的场景(log只是从leader向follower单项同步)
                 // Appending entries overlap the local ones. We should find if there
                 // is a conflicting index from which we should truncate the local
                 // ones.
                 int conflictingIndex = 0;
                 for (; conflictingIndex < entries.size(); conflictingIndex++) {
+                    // 正常来说, 新leader发送过来的第一个日志就是冲突的日志(append entry流程中获取到了最后匹配的上一条日志的index和term, 然后从这条日志之后开始发送)
+                    // 所以正常来说conflictingIndex就是0, 但是这里处理了一种情况(把之前match的部分日志也同步过来了, 但是这部分日志是不需要写到log里面的)
                     if (unsafeGetTerm(entries.get(conflictingIndex).getId().getIndex()) != entries
                         .get(conflictingIndex).getId().getTerm()) {
                         break;
@@ -1068,7 +1072,7 @@ public class LogManagerImpl implements LogManager {
                     this.lastLogIndex = lastLogEntry.getId().getIndex();
                 } // else this is a duplicated AppendEntriesRequest, we have
                   // nothing to do besides releasing all the entries
-                if (conflictingIndex > 0) {
+                if (conflictingIndex > 0) {// 当前follower本地已经存在的log不需要再次写入, 写入前清理掉(p.s. 正常情况下不应该出现这种场景才对, conflictingIndex应该始终为0才对)
                     // Remove duplication
                     entries.subList(0, conflictingIndex).clear();
                 }

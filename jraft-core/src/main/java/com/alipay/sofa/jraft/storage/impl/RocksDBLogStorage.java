@@ -615,6 +615,9 @@ public class RocksDBLogStorage implements LogStorage, Describer {
         });
     }
 
+    /**
+     * truncate rocksdb中的脏日志
+     */
     @Override
     public boolean truncateSuffix(final long lastIndexKept) {
         this.readLock.lock();
