@@ -377,6 +377,7 @@ public class SnapshotExecutorImpl implements SnapshotExecutor {
                 return;
             }
             this.savingSnapshot = true;
+            // meta will be set at #start method in SaveSnapshotDone
             final SaveSnapshotDone saveSnapshotDone = new SaveSnapshotDone(writer, done, null);
             if (sync) {
                 this.fsmCaller.onSnapshotSaveSync(saveSnapshotDone);
