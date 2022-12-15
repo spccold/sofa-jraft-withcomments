@@ -232,12 +232,13 @@ public class SnapshotExecutorImpl implements SnapshotExecutor {
         this.fsmCaller = opts.getFsmCaller();
         this.node = opts.getNode();
         this.term = opts.getInitTerm();
+        // LocalSnapshotStorage
         this.snapshotStorage = this.node.getServiceFactory().createSnapshotStorage(opts.getUri(),
             this.node.getRaftOptions());
-        if (opts.isFilterBeforeCopyRemote()) {
+        if (opts.isFilterBeforeCopyRemote()) { // default is false
             this.snapshotStorage.setFilterBeforeCopyRemote();
         }
-        if (opts.getSnapshotThrottle() != null) {
+        if (opts.getSnapshotThrottle() != null) { // default is null
             this.snapshotStorage.setSnapshotThrottle(opts.getSnapshotThrottle());
         }
         if (!this.snapshotStorage.init(null)) {
@@ -368,7 +369,7 @@ public class SnapshotExecutorImpl implements SnapshotExecutor {
                             "The snapshot index distance since last snapshot is less than NodeOptions#snapshotLogIndexMargin, canceled this task."));
                 return;
             }
-
+            // 每次保存快照, 都会重新new一个SnapshotWriter
             final SnapshotWriter writer = this.snapshotStorage.create();
             if (writer == null) {
                 ThreadPoolsFactory.runClosureInThread(getNode().getGroupId(), done, new Status(RaftError.EIO,

@@ -57,6 +57,7 @@ public class LocalSnapshotWriter extends SnapshotWriter {
 
     @Override
     public boolean init(final Void v) {
+        // exp: xxx/snapshot/temp
         final File dir = new File(this.path);
         try {
             FileUtils.forceMkdir(dir);
@@ -65,10 +66,12 @@ public class LocalSnapshotWriter extends SnapshotWriter {
             setError(RaftError.EIO, "Fail to create directory  %s", this.path);
             return false;
         }
+        // exp: xxx/snapshot/temp/__raft_snapshot_meta, 存放每个snapshot相关的一些元数据
         final String metaPath = path + File.separator + JRAFT_SNAPSHOT_META_FILE;
         final File metaFile = new File(metaPath);
         try {
             if (metaFile.exists()) {
+                // 从xxx/snapshot/temp/__raft_snapshot_meta中恢复元数据
                 return metaTable.loadFromFile(metaPath);
             }
         } catch (final IOException e) {
@@ -105,6 +108,7 @@ public class LocalSnapshotWriter extends SnapshotWriter {
     }
 
     public boolean sync() throws IOException {
+        // exp: xxx/snapshot/temp/__raft_snapshot_meta
         return this.metaTable.saveToFile(this.path + File.separator + JRAFT_SNAPSHOT_META_FILE);
     }
 
@@ -115,6 +119,7 @@ public class LocalSnapshotWriter extends SnapshotWriter {
             metaBuilder.mergeFrom(fileMeta);
         }
         final LocalFileMeta meta = metaBuilder.build();
+        // exp: fileName=data
         return this.metaTable.addFile(fileName, meta);
     }
 

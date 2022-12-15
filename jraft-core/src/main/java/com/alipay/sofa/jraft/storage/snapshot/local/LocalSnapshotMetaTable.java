@@ -36,7 +36,21 @@ import com.google.protobuf.ZeroByteStringHelper;
 
 /**
  * Table to keep local snapshot metadata infos.
- *
+ * <pre>
+ * 每个snapshot子目录的元数据信息
+ * -- servername
+ *  --log
+ *      --......
+ *  --raft_meta
+ *      --......
+ *  --snapshot
+ *      --snapshot_1002
+ *          --__raft_snapshot_meta
+ *          --data(Counter Demo)
+ *      --snapshot_2002
+ *          --__raft_snapshot_meta
+ *          --data(Counter Demo)
+ *</pre>
  * @author boyan (boyan@alibaba-inc.com)
  *
  * 2018-Mar-12 7:22:27 PM
@@ -111,11 +125,14 @@ public class LocalSnapshotMetaTable {
      * Save metadata infos into file by path.
      */
     public boolean saveToFile(String path) throws IOException {
+        // exp: path = xxx/snapshot/temp/__raft_snapshot_meta
         LocalSnapshotPbMeta.Builder pbMeta = LocalSnapshotPbMeta.newBuilder();
         if (hasMeta()) {
+            // SnapshotMeta
             pbMeta.setMeta(this.meta);
         }
         for (Map.Entry<String, LocalFileMeta> entry : this.fileMap.entrySet()) {
+            // exp:  key=data, value={source=local}
             File f = File.newBuilder().setName(entry.getKey()).setMeta(entry.getValue()).build();
             pbMeta.addFiles(f);
         }

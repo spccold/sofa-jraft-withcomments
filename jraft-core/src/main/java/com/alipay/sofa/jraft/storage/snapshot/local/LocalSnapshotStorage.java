@@ -97,6 +97,7 @@ public class LocalSnapshotStorage implements SnapshotStorage {
 
     @Override
     public boolean init(final Void v) {
+        // exp: xxx/snapshot
         final File dir = new File(this.path);
 
         try {
@@ -108,6 +109,7 @@ public class LocalSnapshotStorage implements SnapshotStorage {
 
         // delete temp snapshot
         if (!this.filterBeforeCopyRemote) {
+            // xxx/snapshot/temp, 这个目录是干啥的 ？
             final String tempSnapshotPath = this.path + File.separator + TEMP_PATH;
             final File tempFile = new File(tempSnapshotPath);
             if (tempFile.exists()) {
@@ -121,13 +123,15 @@ public class LocalSnapshotStorage implements SnapshotStorage {
         }
         // delete old snapshot
         final List<Long> snapshots = new ArrayList<>();
+        // 获取xxx/snapshot目录下所有的子目录, 例如snapshot_1, snapshot_2, snapshot_3......
         final File[] oldFiles = dir.listFiles();
         if (oldFiles != null) {
             for (final File sFile : oldFiles) {
                 final String name = sFile.getName();
-                if (!name.startsWith(Snapshot.JRAFT_SNAPSHOT_PREFIX)) {
+                if (!name.startsWith(Snapshot.JRAFT_SNAPSHOT_PREFIX)) { // 排查非raft snapshot文件
                     continue;
                 }
+                // 解析获取子目录后缀
                 final long index = Long.parseLong(name.substring(Snapshot.JRAFT_SNAPSHOT_PREFIX.length()));
                 snapshots.add(index);
             }
@@ -177,7 +181,7 @@ public class LocalSnapshotStorage implements SnapshotStorage {
 
     void unref(final long index) {
         final AtomicInteger refs = getRefs(index);
-        if (refs.decrementAndGet() == 0) {
+        if (refs.decrementAndGet() == 0) { // 某个snapshot没有引用时, 进行清理操作
             if (this.refMap.remove(index, refs)) {
                 destroySnapshot(getSnapshotPath(index));
             }
@@ -283,6 +287,8 @@ public class LocalSnapshotStorage implements SnapshotStorage {
         LocalSnapshotWriter writer = null;
         // noinspection ConstantConditions
         do {
+            // exp: xxx/snapshot/temp, 每次快照先写到temp目录, 然后再移动到xxx/snapshot/snapshot_${log_index}目录中
+            // but why ?
             final String snapshotPath = this.path + File.separator + TEMP_PATH;
             // delete temp
             // TODO: Notify watcher before deleting
