@@ -968,7 +968,7 @@ public class LogManagerImpl implements LogManager {
                 "Try to truncate logs before %d, but the firstLogIndex is %d", firstIndexKept, this.firstLogIndex);
 
         this.firstLogIndex = firstIndexKept;
-        if (firstIndexKept > this.lastLogIndex) {
+        if (firstIndexKept > this.lastLogIndex) {// 什么场景下会发生这种情况?
             // The entry log is dropped
             this.lastLogIndex = firstIndexKept - 1;
         }
