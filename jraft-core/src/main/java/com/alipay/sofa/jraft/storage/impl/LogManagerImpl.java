@@ -638,7 +638,7 @@ public class LogManagerImpl implements LogManager {
             //                this.diskId = this.lastSnapshotId.copy();
             //            }
 
-            if (term == 0) {
+            if (term == 0) {// 啥时候会发生这种情况呢?
                 // last_included_index is larger than last_index
                 // FIXME: what if last_included_index is less than first_index?
                 doUnlock = false;
@@ -650,7 +650,7 @@ public class LogManagerImpl implements LogManager {
                 // some log around last_snapshot_index is probably needed by some
                 // followers
                 // TODO if there are still be need?
-                if (savedLastSnapshotIndex > 0) {
+                if (savedLastSnapshotIndex > 0) { // 每次先清理到上次保持snapshot的位置, 当前snapshot的这段日志下次再清理, 避免还未复制到follower就被清理了
                     doUnlock = false;
                     //unlock in truncatePrefix
                     truncatePrefix(savedLastSnapshotIndex + 1, this.writeLock);
