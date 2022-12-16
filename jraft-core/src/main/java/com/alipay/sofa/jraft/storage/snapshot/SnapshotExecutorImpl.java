@@ -419,7 +419,7 @@ public class SnapshotExecutorImpl implements SnapshotExecutor {
             this.lock.unlock();
         }
 
-        if (ret == 0) {
+        if (ret == 0) {// success
             if (!writer.saveMeta(meta)) {
                 LOG.warn("Fail to save snapshot {}.", writer.getPath());
                 ret = RaftError.EIO.getNumber();
@@ -430,6 +430,7 @@ public class SnapshotExecutorImpl implements SnapshotExecutor {
             }
         }
         try {
+            // 新的snapshot_${last_include_index}写入磁盘
             writer.close();
         } catch (final IOException e) {
             LOG.error("Fail to close writer", e);

@@ -627,6 +627,7 @@ public class FSMCallerImpl implements FSMCaller {
                 metaBuilder.addOldLearners(peer.toString());
             }
         }
+        // 记录下此时此刻的SnapshotMeta(last index, last term, last configuration)
         final SnapshotWriter writer = done.start(metaBuilder.build());
         if (writer == null) {
             done.run(new Status(RaftError.EINVAL, "snapshot_storage create SnapshotWriter failed"));

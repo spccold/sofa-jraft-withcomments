@@ -210,7 +210,7 @@ public class LocalSnapshotStorage implements SnapshotStorage {
                 break;
             }
             try {
-                if (!writer.sync()) {
+                if (!writer.sync()) {// meta 写入磁盘
                     ret = RaftError.EIO.getNumber();
                     break;
                 }
@@ -226,6 +226,7 @@ public class LocalSnapshotStorage implements SnapshotStorage {
                 ret = RaftError.EEXISTS.getNumber();
                 break;
             }
+            // exp: xxx/snapshot/temp 内容搬到 exp: xxx/snapshot/snapshot_${last_include_index}
             // rename temp to new
             final String tempPath = this.path + File.separator + TEMP_PATH;
             final String newPath = getSnapshotPath(newIndex);
@@ -243,6 +244,7 @@ public class LocalSnapshotStorage implements SnapshotStorage {
                 ioe = new IOException("Fail to rename temp snapshot from: " + tempPath + " to: " + newPath);
                 break;
             }
+            // 新的snapshot目录引用+1
             ref(newIndex);
             this.lock.lock();
             try {
@@ -251,6 +253,7 @@ public class LocalSnapshotStorage implements SnapshotStorage {
             } finally {
                 this.lock.unlock();
             }
+            // 老的snapshot目录(上一次的snapshot)引用-1, 如果引用降为0, 则删除整个目录
             unref(oldIndex);
         } while (false);
 

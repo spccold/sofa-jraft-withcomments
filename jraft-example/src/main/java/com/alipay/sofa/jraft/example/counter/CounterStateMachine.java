@@ -135,6 +135,7 @@ public class CounterStateMachine extends StateMachineAdapter {
     public void onSnapshotSave(final SnapshotWriter writer, final Closure done) {
         final long currVal = this.value.get();
         executor.submit(() -> {
+            // exp: xxx/snapshot/temp/data
             final CounterSnapshotFile snapshot = new CounterSnapshotFile(writer.getPath() + File.separator + "data");
             if (snapshot.save(currVal)) {
                 if (writer.addFile("data")) {
