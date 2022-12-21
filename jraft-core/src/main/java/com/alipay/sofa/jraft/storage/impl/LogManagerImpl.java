@@ -638,7 +638,22 @@ public class LogManagerImpl implements LogManager {
             //                this.diskId = this.lastSnapshotId.copy();
             //            }
 
-            if (term == 0) {// 啥时候会发生这种情况呢?
+            /**
+             * term == 0 啥时候会发生这种情况呢?
+             * setSnapshot的调用来源如下:
+             * 1. SnapshotExecutorImpl#onSnapshotLoadDone, snapshot加载的时候
+             *  1.1 FirstSnapshotLoadDone, 发生在当前节点启动的时候, 加载本地已经存在的snapshot
+             *  1.2 InstallSnapshotDone, 发生在当前follower和leader的日志差距较多, 而且leader上的日志已经被清理的场景, 这是leader需要发送snapshot给当前follower
+             * 2. SnapshotExecutorImpl#onSnapshotSaveDone, snapshot保存的时候
+             *
+             * a. 场景2是不会出现last_included_index > last_index的情况, 对于把本地log进行snapshot操作的情况, 因为last_included_index是已经应用到状态机的,
+             * 绝对不可能大于last_index(即使是极端的follower因为和leader日志不一致, leader覆盖follower本地日志的场景, 因为last_included_index是应用到状态机的, 已经提交的, 不可能被leader覆盖掉),
+             * b. 对于场景1.2, 由于当前follower的日志距离leader已经比较远, leader发送过来的snapshot很可能比当前follower的日志更新,
+             * 这样的话, follower本地的日志就没有保留的必要了, 直接加载来自leader的snapshot就好了
+             * c. 对于场景1.1, 需要进一步看下installSnapshot的逻辑, 来自leader的snapshot会先保存到本地, 然后再开始加载? 如果这样, 存在一种可能, 加载来自leader snapshot的时候挂了,
+             * 这样重启节点的时候, 来自leader的snapshot的last_included_index就会比本地的last_index大了, 需要去确认下逻辑 TODO
+             */
+            if (term == 0) {
                 // last_included_index is larger than last_index
                 // FIXME: what if last_included_index is less than first_index?
                 doUnlock = false;

@@ -267,6 +267,7 @@ public class RocksDBLogStorage implements LogStorage, Describer {
                 } else {
                     if (Arrays.equals(FIRST_LOG_IDX_KEY, ks)) {
                         setFirstLogIndex(Bits.getLong(bs, 0));
+                        // 防止之前日志清理异常中断的场景 ?(否则之前truncate成功的话, 目前应该不会流程什么脏日志才对)
                         truncatePrefixInBackground(0L, this.firstLogIndex);
                     } else {
                         LOG.warn("Unknown entry in configuration storage key={}, value={}.", BytesUtil.toHex(ks),

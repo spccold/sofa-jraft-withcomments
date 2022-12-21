@@ -726,8 +726,10 @@ public class FSMCallerImpl implements FSMCaller {
             }
             this.fsm.onConfigurationCommitted(conf);
         }
-        // snapshot加载完毕, 设置commit index, apply index, term等信息
+        // snapshot加载完毕, 设置last commit index, last apply index, term等信息
         this.lastCommittedIndex.set(meta.getLastIncludedIndex());
+        // snapshot加载完毕意味着就已经应用状态机完毕了, 这里需要更last apply index, 下一次应用状态机从这个位置的日志开始
+        // (比如重启, snapshot加载完之后, 后续应该在这个snapshot的基础之上继续加载日志到状态机)
         this.lastAppliedIndex.set(meta.getLastIncludedIndex());
         this.lastAppliedTerm = meta.getLastIncludedTerm();
         done.run(Status.OK());
