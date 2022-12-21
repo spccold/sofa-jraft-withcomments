@@ -130,6 +130,7 @@ public class LocalSnapshotWriter extends SnapshotWriter {
 
     @Override
     public String getPath() {
+        // exp: xxx/snapshot/temp
         return this.path;
     }
 

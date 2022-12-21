@@ -3276,6 +3276,14 @@ public class NodeImpl implements Node, RaftServerService {
         doSnapshot(done, true);
     }
 
+    /**
+     * 调用来源
+     * <pre>
+     *     1. snapshot, 异步调用, 来自己cli, 正常不会触发
+     *     2. snapshotSync, 异步调用, 暂时没有来源
+     *     3. 【important】handleSnapshotTimeout, 异步调用, 定时触发(现在默认1个小时触发一次)
+     * </pre>
+     */
     private void doSnapshot(final Closure done, boolean sync) {
         if (this.snapshotExecutor != null) {
             if (sync) {
