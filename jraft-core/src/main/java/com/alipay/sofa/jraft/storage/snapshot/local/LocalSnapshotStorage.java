@@ -108,8 +108,8 @@ public class LocalSnapshotStorage implements SnapshotStorage {
         }
 
         // delete temp snapshot
-        if (!this.filterBeforeCopyRemote) {
-            // xxx/snapshot/temp, 这个目录是干啥的 ？
+        if (!this.filterBeforeCopyRemote) { // default is false
+            // xxx/snapshot/temp, 用于临时存放snapshot文件
             final String tempSnapshotPath = this.path + File.separator + TEMP_PATH;
             final File tempFile = new File(tempSnapshotPath);
             if (tempFile.exists()) {
@@ -143,7 +143,7 @@ public class LocalSnapshotStorage implements SnapshotStorage {
         if (!snapshots.isEmpty()) {
             Collections.sort(snapshots);
             final int snapshotCount = snapshots.size();
-
+            // 启动的时候, 除了最后一个snapshot外, 其它的snapshot全部删除
             for (int i = 0; i < snapshotCount - 1; i++) {
                 final long index = snapshots.get(i);
                 final String snapshotPath = getSnapshotPath(index);
@@ -151,7 +151,9 @@ public class LocalSnapshotStorage implements SnapshotStorage {
                     return false;
                 }
             }
+            // 保留最后一个snapshot index
             this.lastSnapshotIndex = snapshots.get(snapshotCount - 1);
+            // 最后的snapshot引用+1, 避免被意外删除
             ref(this.lastSnapshotIndex);
         }
 
@@ -329,6 +331,7 @@ public class LocalSnapshotStorage implements SnapshotStorage {
         final String snapshotPath = getSnapshotPath(lsIndex);
         final SnapshotReader reader = new LocalSnapshotReader(this, this.snapshotThrottle, this.addr, this.raftOptions,
             snapshotPath);
+        // 读取last snapshot的meta信息
         if (!reader.init(null)) {
             LOG.error("Fail to init reader for path {}.", snapshotPath);
             unref(lsIndex);

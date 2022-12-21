@@ -241,6 +241,7 @@ public class SnapshotExecutorImpl implements SnapshotExecutor {
         if (opts.getSnapshotThrottle() != null) { // default is null
             this.snapshotStorage.setSnapshotThrottle(opts.getSnapshotThrottle());
         }
+        // 遍历所有snapshot文件, 保留最后一个, 其他全部删除
         if (!this.snapshotStorage.init(null)) {
             LOG.error("Fail to init snapshot storage.");
             return false;
@@ -256,6 +257,7 @@ public class SnapshotExecutorImpl implements SnapshotExecutor {
         if (reader == null) {
             return true;
         }
+        // 获取snapshot meta
         this.loadingSnapshotMeta = reader.load();
         if (this.loadingSnapshotMeta == null) {
             LOG.error("Fail to load meta from {}.", opts.getUri());

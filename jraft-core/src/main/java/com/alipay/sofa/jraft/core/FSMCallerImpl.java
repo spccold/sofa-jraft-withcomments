@@ -194,7 +194,9 @@ public class FSMCallerImpl implements FSMCaller {
         this.afterShutdown = opts.getAfterShutdown();
         this.node = opts.getNode();
         this.nodeMetrics = this.node.getNodeMetrics();
+        // 初始为0
         this.lastCommittedIndex.set(opts.getBootstrapId().getIndex());
+        // 初始为0
         this.lastAppliedIndex.set(opts.getBootstrapId().getIndex());
         notifyLastAppliedIndexUpdated(this.lastAppliedIndex.get());
         this.lastAppliedTerm = opts.getBootstrapId().getTerm();
@@ -251,7 +253,7 @@ public class FSMCallerImpl implements FSMCaller {
         this.taskQueue.publishEvent(tpl);
         return true;
     }
-
+    // log commit完成, 执行应用到状态机操作
     @Override
     public boolean onCommitted(final long committedIndex) {
         return enqueueTask((task, sequence) -> {
@@ -567,7 +569,7 @@ public class FSMCallerImpl implements FSMCaller {
             this.nodeMetrics.recordLatency("fsm-commit", Utils.monotonicMs() - startMs);
         }
     }
-
+    // 应用状态机完成之后, 更新index, term信息
     void setLastApplied(long lastIndex, final long lastTerm) {
         final LogId lastAppliedId = new LogId(lastIndex, lastTerm);
         this.lastAppliedIndex.set(lastIndex);
