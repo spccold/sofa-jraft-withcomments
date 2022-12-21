@@ -697,6 +697,11 @@ public class FSMCallerImpl implements FSMCaller {
         }
         final LogId lastAppliedId = new LogId(this.lastAppliedIndex.get(), this.lastAppliedTerm);
         final LogId snapshotId = new LogId(meta.getLastIncludedIndex(), meta.getLastIncludedTerm());
+        /**
+         * 两种case
+         * 1. FirstSnapshotLoadDone, 这种场景下, 处于节点初始花阶段, lastAppliedId应该为0,0
+         * 2. InstallSnapshotDone, TODO
+         */
         if (lastAppliedId.compareTo(snapshotId) > 0) {
             done.run(new Status(
                 RaftError.ESTALE,
@@ -721,6 +726,7 @@ public class FSMCallerImpl implements FSMCaller {
             }
             this.fsm.onConfigurationCommitted(conf);
         }
+        // snapshot加载完毕, 设置commit index, apply index, term等信息
         this.lastCommittedIndex.set(meta.getLastIncludedIndex());
         this.lastAppliedIndex.set(meta.getLastIncludedIndex());
         this.lastAppliedTerm = meta.getLastIncludedTerm();

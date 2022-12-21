@@ -564,16 +564,22 @@ public class RocksDBLogStorage implements LogStorage, Describer {
             return 0;
         }
     }
-
+    // 发生在snapshot save之后, 清除前面无用的日志
     @Override
     public boolean truncatePrefix(final long firstIndexKept) {
         this.readLock.lock();
         try {
+            // 从默认log中获取当前log的first log index
             final long startIndex = getFirstLogIndex();
+            // 把需要保留的最开始log index写到配置log中
+            // 为啥把first log index写入到配置日志中? 每次直接读取默认log获取不行吗?(因为清理日志在异步线程中执行,
+            // 所有读取默认日志不准? 希望的效果是truncate可以"立刻"完成, first log index的更新可以立刻完成, 下次读取快速生效?)
             final boolean ret = saveFirstLogIndex(firstIndexKept);
             if (ret) {
+                // 设置需要保留的log index位first log index
                 setFirstLogIndex(firstIndexKept);
             }
+            // 执行日志清理
             truncatePrefixInBackground(startIndex, firstIndexKept);
             return ret;
         } finally {
