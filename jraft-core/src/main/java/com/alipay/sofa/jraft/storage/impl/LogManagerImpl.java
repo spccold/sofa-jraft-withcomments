@@ -622,7 +622,7 @@ public class LogManagerImpl implements LogManager {
             this.configManager.setSnapshot(entry);
             final long term = unsafeGetTerm(meta.getLastIncludedIndex());
             final long savedLastSnapshotIndex = this.lastSnapshotId.getIndex();
-
+            // 设置最后一次snapshot的信息
             this.lastSnapshotId.setIndex(meta.getLastIncludedIndex());
             this.lastSnapshotId.setTerm(meta.getLastIncludedTerm());
 
