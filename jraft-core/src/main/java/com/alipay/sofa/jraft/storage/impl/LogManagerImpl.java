@@ -1060,7 +1060,7 @@ public class LogManagerImpl implements LogManager {
                 int conflictingIndex = 0;
                 for (; conflictingIndex < entries.size(); conflictingIndex++) {
                     // 正常来说, 新leader发送过来的第一个日志就是冲突的日志(append entry流程中获取到了最后匹配的上一条日志的index和term, 然后从这条日志之后开始发送)
-                    // 所以正常来说conflictingIndex就是0, 但是这里处理了一种情况(把之前match的部分日志也同步过来了, 但是这部分日志是不需要写到log里面的)
+                    // 所以正常来说conflictingIndex就是0, 但是这里处理了一种情况(把之前match的部分日志也同步过来了[重复发送?], 但是这部分日志是不需要写到log里面的)
                     if (unsafeGetTerm(entries.get(conflictingIndex).getId().getIndex()) != entries
                         .get(conflictingIndex).getId().getTerm()) {
                         break;
