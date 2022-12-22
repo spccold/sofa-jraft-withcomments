@@ -1573,8 +1573,8 @@ public class Replicator implements ThreadId.OnError {
 
     private boolean fillCommonFields(final AppendEntriesRequest.Builder rb, long prevLogIndex, final boolean isHeartbeat) {
         final long prevLogTerm = this.options.getLogManager().getTerm(prevLogIndex);
-        if (prevLogTerm == 0 && prevLogIndex != 0) {// 啥时回发生这种场景？
-            if (!isHeartbeat) {
+        if (prevLogTerm == 0 && prevLogIndex != 0) {// 啥时回发生这种场景？需要的log已经在snapshot之后删除了, first log index后移之后, 大于当前的prevLogIndex
+            if (!isHeartbeat) {// normal, probe
                 Requires.requireTrue(prevLogIndex < this.options.getLogManager().getFirstLogIndex());
                 LOG.debug("logIndex={} was compacted", prevLogIndex);
                 return false;
@@ -1584,6 +1584,8 @@ public class Replicator implements ThreadId.OnError {
                 // both prev_log_index and prev_log_term be 0 in the heartbeat
                 // request so that follower would do nothing besides updating its
                 // leader timestamp.
+
+                // 正常的log发送流程会处理日志snapshot导致的log丢失问题, 所以心跳逻辑不要再掺一脚?
                 prevLogIndex = 0;
             }
         }
